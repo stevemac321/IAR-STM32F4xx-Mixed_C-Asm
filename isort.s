@@ -4,21 +4,14 @@ This file is distributed under the GNU General Public License, version 2 (GPLv2)
 See https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
 Author: Stephen E. MacKenzie
 ------------------------------------------------------------------------------*/
-#ifdef __IAR_SYSTEMS_ASM__ 
-        SECTION `.text`:CODE:NOROOT(1)
-        THUMB
-        PUBLIC gen_sort
-        PUBLIC int_less
-        PUBLIC int_notless
-        EXTERN strcmp
 
-#else
         .syntax unified
         .text
+	.thumb_func
         .global gen_sort
-	.global int_less
-	.global int_notless
-#endif
+	.global asm_int_less
+	.global asm_int_notless
+
 /* -----------------------------------------------------------------------------
 C declaration:  
 
@@ -37,14 +30,14 @@ Here is my C version of insertion sort that I used to reason this out:
                  }
 
 ------------------------------------------------------------------------------*/
-int_less:	
+asm_int_less:	
 	cmp	r0, r1
 	ite	ge
 	movge	r0, #0
 	movlt	r0, #1  /*better explicity put in case r0 hold  > 1 */
 	bx	lr
 	
-int_notless:	
+asm_int_notless:	
 	cmp	r0, r1
 	ite	ge
 	movge	r0, #1
@@ -61,15 +54,15 @@ gen_sort:
         cmp     r1, #0  /* quick exit if len variable is zero */
         it      eq      /* IF above statement is true, next line executes */
         moveq   pc, lr  /* return, exit function */
-strf_loop:
+for_loop:
 	add     r7, r7, #1       /* init at 0, first time set to 1 is good */
         cmp     r7, r1        /* check for outer loop termination condition */
-        beq     str_sort_end      /* we are done, sorting */
+        beq     sort_end      /* we are done, sorting */
         mov     r8, r7         /* ELSE r8 saves r7 */
-        b       strw_loop
-strw_loop:
-		cmp     r8, #0           /* test for loop termination */
-        beq     strf_loop
+        b       while_loop
+while_loop:
+	cmp     r8, #0           /* test for loop termination */
+        beq     for_loop
         mov     r9, r8       /* ELSE  r8 key, r9 key - 1 */
         sub     r9, r9, #1
         ldr     r4, [r0, r8, lsl #2]  /* r4:  array[key] */
@@ -83,14 +76,13 @@ strw_loop:
 	mov	r10, r0
 	ldmfd	sp!, {r0-r3, lr}
         cmp     r10, #1
-        bne     strf_loop
+        bne     for_loop
         str     r4, [r0, r9, lsl #2]  /* ELSE swap*/
         str     r5, [r0, r8, lsl #2]
         sub     r8, r8, #1  /* and continue */
-        b       strw_loop
-str_sort_end:
+        b       while_loop
+sort_end:
         ldmfd   sp!, {r4-r11}         /* restore registers used for the loops */
+	bx	lr
 
-#ifdef __IAR_SYSTEMS_ASM__ 
-        END
-#endif
+
